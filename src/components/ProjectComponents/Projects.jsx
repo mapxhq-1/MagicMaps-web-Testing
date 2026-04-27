@@ -107,7 +107,7 @@ const Projects = () => {
         <Header />
         <div className="flex-1 overflow-auto">
           <Routes>
-            <Route index element={<Navigate to="myProjects" replace />} />
+            <Route index element={<Navigate to={`myProjects${location.search}`} replace />} />
             <Route path="sharedProjects" element={<ProjectGrid />} />
             <Route path="myProjects" element={<ProjectGrid />} />
             <Route path="allProjects" element={<ProjectGrid />} />
