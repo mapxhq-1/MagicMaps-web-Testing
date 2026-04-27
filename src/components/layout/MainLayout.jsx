@@ -37,10 +37,8 @@ import selectIcon from "../../assets/icons/select_icon.png";
 export default function MainLayout({ isDemo }) { 
   const BASE_URL = import.meta.env.VITE_URL_PROJECT + "/project-management-service";
   
-  // --- Drag Boundary Ref ---
   const dragBoundaryRef = useRef(null);
 
-  // --- LAYOUT STATE ---
   const [leftExpanded, setLeftExpanded] = useState(false);
   const [rightExpanded, setRightExpanded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -48,7 +46,6 @@ export default function MainLayout({ isDemo }) {
   const leftWidth = leftExpanded ? 250 : 50;
   const rightWidth = rightExpanded ? 300 : 50;
 
-  // --- TOOLS STATE ---
   const [selectedMode, setSelectedMode] = useState(null);
 
   // --- DEBUG STATE ---
@@ -60,13 +57,13 @@ export default function MainLayout({ isDemo }) {
     leftPanel: true,
     rightPanel: true,
     tools: true,
+    mapControls: true, // <-- Single toggle for all map buttons
   });
 
   const toggleComp = (key) => {
     setShowComps((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // --- DATA STATE ---
   const { id } = useParams();
   const [project, setProject] = useState({});
   const navigate = useNavigate();
@@ -78,12 +75,10 @@ export default function MainLayout({ isDemo }) {
   const hyperlinkOpen = useSelector((state) => state.map.hyperlinkOpen);
   const loading = useSelector((state) => state.map.loading);
 
-  // --- MEDIA QUERIES ---
   const isMobilePortrait = useMediaQuery('(max-width: 900px) and (orientation: portrait)');
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isMobileLandscape = useMediaQuery('(max-width: 1200px) and (orientation: landscape)');
 
-  // --- AUTH & DATA ---
   useEffect(() => {
     const savedEmail = localStorage.getItem('ownerEmail');
     const savedToken = localStorage.getItem('userToken');
@@ -108,7 +103,6 @@ export default function MainLayout({ isDemo }) {
 
   useEffect(() => { dispatch(fetchAllEmpirePolygons()); }, [dispatch]);
 
-  // --- FULLSCREEN HANDLERS ---
   useEffect(() => {
     const checkFullscreenStatus = () => {
       const isFull = 
@@ -117,7 +111,6 @@ export default function MainLayout({ isDemo }) {
         document.mozFullScreenElement || 
         document.msFullscreenElement ||
         document.webkitCurrentFullScreenElement; 
-
       setIsFullscreen(!!isFull);
     };
 
@@ -173,8 +166,7 @@ export default function MainLayout({ isDemo }) {
     try { window.mapxDrawSetMode && window.mapxDrawSetMode(shapeType); } catch(e){console.error("Error:", e)}
   };
 
-  // --- RENDER BLOCKING SCREENS ---
-  const BlockingScreen = ({ icon, title, subtitle, buttonText, onButtonClick, onDismiss }) => (
+  const BlockingScreen = ({ icon, title, subtitle, buttonText, onButtonClick }) => (
     <Box sx={{
       height: "100vh", width: "100vw", display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center", backgroundColor: "#000000",
@@ -195,10 +187,7 @@ export default function MainLayout({ isDemo }) {
           {buttonText && (
             <Button 
               variant="contained" size="large" startIcon={<FullscreenIcon />} onClick={onButtonClick}
-              sx={{ 
-                backgroundColor: "#2e7d32", color: "#ffffff", borderRadius: "50px", px: 4, py: 1.5, 
-                fontWeight: "bold", textTransform: "none", borderTop: "2px solid rgba(255, 255, 255, 0.4)", 
-              }}
+              sx={{ backgroundColor: "#2e7d32", color: "#ffffff", borderRadius: "50px", px: 4, py: 1.5, fontWeight: "bold", textTransform: "none", borderTop: "2px solid rgba(255, 255, 255, 0.4)" }}
             >
               {buttonText}
             </Button>
@@ -227,29 +216,22 @@ export default function MainLayout({ isDemo }) {
         subtitle="This experience requires fullscreen mode."
         buttonText="Enter Fullscreen"
         onButtonClick={handleEnterFullscreen}
-        onDismiss={() => setIsFullscreen(true)}
         icon={<FullscreenIcon sx={{ fontSize: 80, mb: 2, color: "#ffffff", animation: "pulse 2s infinite" }} />}
       />
     );
   }
 
-  // --- MAIN APP ---
   return (
     <Box sx={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       
-      {/* --- INVISIBLE DRAG BOUNDARY W/ PADDING --- */}
-      <div 
-        ref={dragBoundaryRef} 
-        style={{ position: 'fixed', top: 20, left: 20, right: 20, bottom: 20, pointerEvents: 'none', zIndex: -1 }} 
-      />
+      <div ref={dragBoundaryRef} style={{ position: 'fixed', top: 20, left: 20, right: 20, bottom: 20, pointerEvents: 'none', zIndex: -1 }} />
 
-      {showComps.chat && (
-        <ResizableWindow><Chat /></ResizableWindow>
-      )}
+      {showComps.chat && <ResizableWindow><Chat /></ResizableWindow>}
       
       <Box sx={{ position: "relative", flex: 1, minWidth: 0, minHeight: 0 }}>
-        {showComps.map && <MapView leftOffset={leftWidth} rightOffset={rightWidth} />}
         
+{/* Pass the single toggle down as a prop */}
+{showComps.map && <MapView leftOffset={leftWidth} rightOffset={rightWidth} showControls={showComps.mapControls} />}        
         {showComps.timeline && (
           <Box id="timeline-overlay" sx={{ position: "absolute", left: leftWidth + 8, right: rightWidth + 8, bottom: 8, zIndex: 15, pointerEvents: "none" }}>
             <Timeline />
@@ -270,61 +252,27 @@ export default function MainLayout({ isDemo }) {
         
         {loading && <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 500, pointerEvents: "none" }}><MapLoader /></Box>}
 
-        {/* --- FLOATING, DRAGGABLE TOOLS WIDGET --- */}
         {showComps.tools && (
           <motion.div
-            drag
-            dragConstraints={dragBoundaryRef} 
-            dragElastic={0.1} 
-            dragMomentum={false}
-            style={{ 
-              position: 'fixed', 
-              bottom: '200px', 
-              left: '78%',
-              x: '-50%',
-              zIndex: 9999, 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center' 
-            }}
+            drag dragConstraints={dragBoundaryRef} dragElastic={0.1} dragMomentum={false}
+            style={{ position: 'fixed', bottom: '200px', left: '78%', x: '-50%', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
             className="pointer-events-auto"
           >
-            <Tools 
-              selectedMode={selectedMode} 
-              handleToolClick={handleToolClick}
-              handleShapeClick={handleShapeClick}
-              Icons={ToolIcons}
-              isDemo={isDemo}
-            />
+            <Tools selectedMode={selectedMode} handleToolClick={handleToolClick} handleShapeClick={handleShapeClick} Icons={ToolIcons} isDemo={isDemo} />
           </motion.div>
         )}
       </Box>
 
-      {/* --- DEBUG TOGGLE WIDGET (Bottom Left) --- */}
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: 2,
-          left: 2,
-          zIndex: 99999, // Ensure it sits on top of everything
-          opacity: debugMenuOpen ? 1 : 0.4, // Subtle, but visible
-          transition: 'opacity 0.3s',
-          '&:hover': { opacity: 1 },
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          color: 'white',
-          borderRadius: 2,
-          p: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          boxShadow: debugMenuOpen ? '0px 0px 10px rgba(0,0,0,0.5)' : 'none'
-        }}
-      >
-        <Button
-          size="small"
-          onClick={() => setDebugMenuOpen(!debugMenuOpen)}
-          sx={{ minWidth: 0, p: 0.5, color: '#aaa', fontSize: '0.6rem', lineHeight: 1 }}
-        >
+      {/* --- DEBUG TOGGLE WIDGET --- */}
+      <Box sx={{
+        position: 'fixed', bottom: 2, left: 2, zIndex: 99999,
+        opacity: debugMenuOpen ? 1 : 0.4, transition: 'opacity 0.3s', '&:hover': { opacity: 1 },
+        backgroundColor: 'rgba(0, 0, 0, 0.8)', color: 'white', borderRadius: 2, p: 1,
+        display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+        boxShadow: debugMenuOpen ? '0px 0px 10px rgba(0,0,0,0.5)' : 'none',
+        maxHeight: '80vh', overflowY: 'auto' // Added scrolling just in case the list gets too tall
+      }}>
+        <Button size="small" onClick={() => setDebugMenuOpen(!debugMenuOpen)} sx={{ minWidth: 0, p: 0.5, color: '#aaa', fontSize: '0.6rem', lineHeight: 1 }}>
           {debugMenuOpen ? 'Hide Debug' : '⚙'}
         </Button>
 
@@ -332,12 +280,7 @@ export default function MainLayout({ isDemo }) {
           <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {Object.keys(showComps).map((key) => (
               <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px' }}>
-                <input
-                  type="checkbox"
-                  checked={showComps[key]}
-                  onChange={() => toggleComp(key)}
-                  style={{ cursor: 'pointer' }}
-                />
+                <input type="checkbox" checked={showComps[key]} onChange={() => toggleComp(key)} style={{ cursor: 'pointer' }} />
                 {key}
               </label>
             ))}
