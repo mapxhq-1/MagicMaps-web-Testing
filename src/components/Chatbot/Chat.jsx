@@ -6,10 +6,11 @@ import { setYear, setFlyToPosition, setMarkers } from "../../store/mapSlice";
 import { yearFromDbFormat } from "../../utils/era";
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from "framer-motion";
-import { sendMessage as sendChatMessage, fetchAllChats, getChatHistory, deleteChatSession, translateToEnglish, transcribeAudio, getThinkingText } from "../api/chatService";
+import { sendMessage as sendChatMessage, fetchAllChats, getChatHistory, deleteChatSession, translateToEnglish, transcribeAudio, getThinkingText, openSourcePdf } from "../api/chatService";
 import TypingMarkdown from './TypingMarkdown'
+import { logger } from "../map/utils/activityLogger";
 
-export default function Chat() {
+export default function Chat({isDemo, handleLoginClick}) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -199,6 +200,7 @@ async function fetchThinkingText(query) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeCitations, setActiveCitations] = useState(null);
+  const [activeReferences, setActiveReferences] = useState(null);
 
   const [selectedGrade, setSelectedGrade] = useState(0);
   const [voiceLanguage, setVoiceLanguage] = useState('en-IN');
@@ -330,6 +332,9 @@ async function fetchThinkingText(query) {
     
     if (userContent.includes(identifier)) {
       userContent = userContent.split(identifier)[0].trim();
+      logger.logAction("ASK_DYNO", window.location.pathname, {
+        userContent
+      });
     }
 
     uiMsgs.push({ role: "user", content: userContent, timestamp: historyItem.timestamp });
@@ -351,6 +356,7 @@ async function fetchThinkingText(query) {
       content: historyItem.modelResponse,
       citations: historyItem.citations?.sources || historyItem.citations?.data || [],
       empire_match: empireData,
+      references: historyItem.references || [],
       timestamp: historyItem.timestamp
     });
 
@@ -405,7 +411,12 @@ async function fetchThinkingText(query) {
     if (!empireMatch) return;
     console.log(empireMatch);
     var { lat, lng, time, markers, zoom, location } = empireMatch;
-
+    logger.logAction("MAP_FLY_TO", window.location.pathname, {
+        targetLocation: location || "Unknown Location",
+        coordinates: { lat, lng },
+        targetZoom: zoom,
+        targetTime: time
+    });
     if (lat !== undefined && lng !== undefined) flyToIfPossible(lat, lng, zoom);
     if(markers===undefined){
       markers=[{lat,lng,location}];
@@ -535,7 +546,7 @@ async function fetchThinkingText(query) {
         toast.error("Free limit reached! Please login to continue.", { autoClose: 5000 });
         setMessages((prev) => [...prev, { 
           role: "assistant", 
-          content: "You've reached your free limit of 10 messages! Please **[Login](/myProjects)** to continue our conversation." 
+          content: "You've reached your free limit of 10 messages! Please login to continue our conversation." 
         }]);
       } else {
         setMessages((prev) => [...prev, { role: "assistant", content: "Error contacting server. Please try again." }]);
@@ -724,6 +735,12 @@ useEffect(() => {
                             View Sources ({msg.citations.length})
                           </button>
                         )}
+                        {msg.references && msg.references.length > 0 && (
+                          <button onClick={() => setActiveReferences(msg.references)} className={`bg-[#f0f2f5] border border-[#e9edef] hover:bg-[#d9dce0] rounded-full text-[#111b21] flex items-center font-medium transition-colors shadow-sm ${isLandscapeMobile ? 'px-2.5 py-1.5 text-[11px] gap-1.5' : 'px-3.5 py-2 text-[13px] gap-2'}`}>
+                            <svg width={isLandscapeMobile ? "12" : "14"} height={isLandscapeMobile ? "12" : "14"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                            Web Links ({msg.references.length})
+                          </button>
+                        )}
                         {msg.empire_match && (
                           <button onClick={() => handleFlyTo(msg.empire_match)} className={`bg-[#f0f2f5] border border-[#e9edef] hover:bg-[#d9dce0] rounded-full text-[#111b21] flex items-center font-medium transition-colors shadow-sm ${isLandscapeMobile ? 'px-2.5 py-1.5 text-[11px] gap-1.5' : 'px-3.5 py-2 text-[13px] gap-2'}`}>
                             <svg width={isLandscapeMobile ? "12" : "14"} height={isLandscapeMobile ? "12" : "14"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
@@ -770,7 +787,7 @@ useEffect(() => {
               {!email && (
                 <div className="w-full text-center text-[13px] text-[#54656f] mb-2 font-medium">
                   Free prompts remaining: <span className="font-bold text-[#006D5B]">{guestPromptsLeft}/10</span>. 
-                  <button onClick={() => navigate('/myProjects')} className="text-[#006D5B] hover:underline ml-1 cursor-pointer bg-transparent border-none">
+                  <button onClick={() => handleLoginClick('Chat with remaining limit '+guestPromptsLeft)} className="text-[#006D5B] hover:underline ml-1 cursor-pointer bg-transparent border-none">
                     Login for unlimited access
                   </button>
                 </div>
@@ -1008,7 +1025,44 @@ useEffect(() => {
               </div>
             </div>
           </div>
+          {/* WEB LINKS POPUP */}
+          {activeReferences && (
+            <div className={`fixed right-5 w-[calc(100%-40px)] bg-white text-[#111b21] shadow-2xl rounded-xl z-50 max-h-[50%] flex flex-col border border-gray-200 ${isLandscapeMobile ? 'top-[50px] max-w-[250px]' : 'top-[70px] max-w-[300px]'}`}>
+              <div className={`border-b border-gray-200 flex justify-between items-center bg-white rounded-t-xl ${isLandscapeMobile ? 'p-2' : 'p-4'}`}>
+                <span className={`font-semibold ${isLandscapeMobile ? 'text-xs' : 'text-sm'}`}>Web References</span>
+                <button onClick={() => setActiveReferences(null)} className="border-none bg-transparent cursor-pointer p-2 text-2xl text-[#54656f] leading-[0.5] hover:text-[#111b21]">&times;</button>
+              </div>
+              <div className={`overflow-y-auto custom-scrollbar-chat ${isLandscapeMobile ? 'p-2' : 'p-4'}`}>
+                
+                {activeReferences.map((url, i) => {
+                  // Make the URL look a bit cleaner by extracting the hostname for the title
+                  let domain = url;
+                  try { domain = new URL(url).hostname.replace('www.', ''); } catch (e) {}
 
+                  return (
+                    <a 
+                      key={i} 
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`mb-2.5 flex items-center justify-between gap-2 rounded-lg text-[#006D5B] leading-snug transition-colors duration-200 bg-[#e8f5e9] hover:bg-[#c8e6c9] shadow-sm border border-[#a5d6a7] no-underline ${isLandscapeMobile ? 'p-2 text-[11px]' : 'p-3 text-[13px]'}`}
+                      title={url}
+                    >
+                      <span className="truncate block w-full">{domain}</span>
+                      
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* SAFE CITATIONS POPUP */}
           {activeCitations && (
             <div className={`fixed right-5 w-[calc(100%-40px)] bg-white text-[#111b21] shadow-2xl rounded-xl z-50 max-h-[50%] flex flex-col border border-gray-200 ${isLandscapeMobile ? 'top-[50px] max-w-[250px]' : 'top-[70px] max-w-[300px]'}`}>
               <div className={`border-b border-gray-200 flex justify-between items-center bg-white rounded-t-xl ${isLandscapeMobile ? 'p-2' : 'p-4'}`}>
@@ -1016,11 +1070,44 @@ useEffect(() => {
                 <button onClick={() => setActiveCitations(null)} className="border-none bg-transparent cursor-pointer p-2 text-2xl text-[#54656f] leading-[0.5] hover:text-[#111b21]">&times;</button>
               </div>
               <div className={`overflow-y-auto custom-scrollbar-chat ${isLandscapeMobile ? 'p-2' : 'p-4'}`}>
-                {activeCitations.map((c, i) => (
-                  <div key={i} className={`mb-2.5 bg-[#f0f2f5] rounded-lg text-[#111b21] leading-snug ${isLandscapeMobile ? 'p-2 text-[11px]' : 'p-3 text-[13px]'}`}>
-                    {typeof c === "string" ? c : `Page ${c.page} - ${c.lesson} - Grade : ${c.grade}`}
-                  </div>
-                ))}
+                
+                {/* CRITICAL FIX: Dynamically handles both Array and Object structures to prevent crashes */}
+                {(Array.isArray(activeCitations) ? activeCitations : activeCitations?.sources || []).map((c, i) => {
+                  const isClickable = typeof c !== "string" && c?.grade && c?.lesson;
+
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => {
+                        if (isClickable) {
+                          // Pass grade, lesson, AND page_range to the API
+                          openSourcePdf(c.grade, c.lesson, c.page_range).catch((err) => {
+                            console.error("Failed to open PDF:", err);
+                            toast.error("Failed to load the source document.");
+                          });
+                        }
+                      }}
+                      className={`mb-2.5 rounded-lg text-[#111b21] leading-snug transition-colors duration-200 ${
+                        isClickable 
+                          ? "bg-[#e8f5e9] hover:bg-[#c8e6c9] cursor-pointer shadow-sm border border-[#a5d6a7]" 
+                          : "bg-[#f0f2f5]"
+                      } ${isLandscapeMobile ? 'p-2 text-[11px]' : 'p-3 text-[13px]'}`}
+                      title={isClickable ? "Click to view original document" : ""}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{typeof c === "string" ? c : `Page ${c.page} - ${c.lesson} - Grade : ${c.grade}`}</span>
+                        
+                        {isClickable && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#006D5B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

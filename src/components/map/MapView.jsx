@@ -81,7 +81,7 @@ const ZOOM_TOLERANCES = {
 // MAIN COMPONENT
 // ============================================================================
 
-export default function MapView({ leftOffset = 0, rightOffset = 0, showControls = true}) {
+export default function MapView({ leftOffset = 0, rightOffset = 0 }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const popupRef = useRef(null);
@@ -1684,10 +1684,6 @@ const onEmpireClick = async (e) => {
   // RENDER
   // ========================================================================
 
-  // ========================================================================
-  // RENDER
-  // ========================================================================
-
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
       <GalaxyCanvas />
@@ -1754,15 +1750,6 @@ const onEmpireClick = async (e) => {
               </button>
             </div>
         </div>
-      )}
-
-      {/* --- NEW: Hide MapLibre native controls when showControls is false --- */}
-      {!showControls && (
-        <style>{`
-          .maplibregl-control-container {
-            display: none !important;
-          }
-        `}</style>
       )}
 
       <style>{`
