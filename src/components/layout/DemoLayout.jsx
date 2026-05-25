@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useRef } from "react"; // <-- Added useRef
+import React, { useEffect, useState, useRef } from "react";
 import { Box, Typography, Button, useMediaQuery } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import ScreenRotationIcon from '@mui/icons-material/ScreenRotation'; 
 import FullscreenIcon from '@mui/icons-material/Fullscreen'; 
+import { logger } from "../map/utils/activityLogger.js";
 
 // Shared Components
 import MapView from "../map/MapView";
@@ -15,9 +16,10 @@ import GalaxyCanvas from "../common/GalaxyCanvas";
 import { fetchAllEmpirePolygons } from "../../store/mapSlice";
 import { motion } from "framer-motion"; 
 import Tools from '../panels/Tools.jsx'
+
+// Icons
 import handIcon from "../../assets/icons/hand_icon.png";
 import selectIcon from "../../assets/icons/select_icon.png";
-
 import pencilIcon from "../../assets/icons/pencil_icon.png";
 import highlighterIcon from "../../assets/icons/highlighter_icon.png";
 import eraserIcon from "../../assets/icons/eraser_icon.png";
@@ -48,6 +50,22 @@ export default function DemoLayout() {
 
   const loading = useSelector((state) => state.map.loading);
 
+  // --- DEBUG STATE ---
+  const [debugMenuOpen, setDebugMenuOpen] = useState(false);
+  const [showComps, setShowComps] = useState({
+    chat: true,
+    map: true,
+    timeline: true,
+    leftPanel: true,
+    rightPanel: true,
+    tools: true,
+    mapControls: true, 
+  });
+
+  const toggleComp = (key) => {
+    setShowComps((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   // --- DEMO DATA STATE ---
   const [project] = useState({
     name: "Demo Project View",
@@ -55,7 +73,7 @@ export default function DemoLayout() {
     id: "demo-123"
   });
 
-  // --- MEDIA QUERIES (FROM REFERENCE) ---
+  // --- MEDIA QUERIES ---
   const isMobilePortrait = useMediaQuery('(max-width: 900px) and (orientation: portrait)');
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isMobileLandscape = useMediaQuery('(max-width: 1200px) and (orientation: landscape)');
@@ -65,7 +83,7 @@ export default function DemoLayout() {
     dispatch(fetchAllEmpirePolygons()); 
   }, [dispatch]);
 
-  // --- FULLSCREEN HANDLERS (ROBUST FIX FROM REFERENCE) ---
+  // --- FULLSCREEN HANDLERS ---
   useEffect(() => {
     const checkFullscreenStatus = () => {
       const isFull = 
@@ -95,19 +113,19 @@ export default function DemoLayout() {
     };
   }, []);
 
-    const ToolIcons = {
-      SelectSvg: () => <img src={selectIcon} alt="Select" className="w-full h-full object-contain" />,
-      HandSvg: () => <img src={handIcon} alt="Hand" className="w-full h-full object-contain" />,
-      PencilSvg: () => <img src={pencilIcon} alt="Pencil" className="w-full h-full object-contain" />,
-      HighlighterSvg: () => <img src={highlighterIcon} alt="Highlighter" className="w-full h-full object-contain" />,
-      EraserSvg: () => <img src={eraserIcon} alt="Eraser" className="w-full h-full object-contain" />,
-      NoteSvg: () => <img src={noteIcon} alt="Notes" className="w-full h-full object-contain" />,
-      TextSvg: () => <img src={textIcon} alt="Text" className="w-full h-full object-contain" />,
-      HyperlinkSvg: () => <img src={hyperlinkIcon} alt="Hyperlink" className="w-full h-full object-contain" />,
-      ImageSvg: () => <img src={imageIcon} alt="Image" className="w-full h-full object-contain" />,
-    };
+  const ToolIcons = {
+    SelectSvg: () => <img src={selectIcon} alt="Select" className="w-full h-full object-contain" />,
+    HandSvg: () => <img src={handIcon} alt="Hand" className="w-full h-full object-contain" />,
+    PencilSvg: () => <img src={pencilIcon} alt="Pencil" className="w-full h-full object-contain" />,
+    HighlighterSvg: () => <img src={highlighterIcon} alt="Highlighter" className="w-full h-full object-contain" />,
+    EraserSvg: () => <img src={eraserIcon} alt="Eraser" className="w-full h-full object-contain" />,
+    NoteSvg: () => <img src={noteIcon} alt="Notes" className="w-full h-full object-contain" />,
+    TextSvg: () => <img src={textIcon} alt="Text" className="w-full h-full object-contain" />,
+    HyperlinkSvg: () => <img src={hyperlinkIcon} alt="Hyperlink" className="w-full h-full object-contain" />,
+    ImageSvg: () => <img src={imageIcon} alt="Image" className="w-full h-full object-contain" />,
+  };
 
-    const handleToolClick = (mode, color=null) => {
+  const handleToolClick = (mode, color=null) => {
     setSelectedMode(mode);
     try { window.mapxDrawSetMode && window.mapxDrawSetMode(mode,color); } catch (e) { console.error("Error:", e) }
   };
@@ -115,6 +133,15 @@ export default function DemoLayout() {
   const handleShapeClick = (shapeType) => {
     setSelectedMode(shapeType);
     try { window.mapxDrawSetMode && window.mapxDrawSetMode(shapeType); } catch(e){console.error("Error:", e)}
+  };
+
+  const handleLoginClick = (from="") => {
+    logger.logAction("DEMO_LOGIN_CLICKED", window.location.pathname, {
+      action: "login_intent",
+      location: "demo_layout",
+      from
+    },true);
+    navigate('/myprojects');
   };
 
   const handleEnterFullscreen = async () => {
@@ -168,7 +195,6 @@ export default function DemoLayout() {
 
   // --- RENDER LOGIC ---
 
-  // 1. Portrait Warning
   if (isMobilePortrait) {
     return (
       <BlockingScreen 
@@ -181,7 +207,6 @@ export default function DemoLayout() {
     );
   }
 
-  // 2. Landscape but NO Fullscreen (Non-iOS)
   if (isMobileLandscape && !isFullscreen && !isIOS) {
     return (
       <BlockingScreen 
@@ -204,56 +229,97 @@ export default function DemoLayout() {
       />
 
       {/* chatbot with Demo Prop */}
-      <ResizableWindow>
-        <Chat isDemo={true} />
-      </ResizableWindow>
+      {showComps.chat && (
+        <ResizableWindow>
+          <Chat isDemo={true} handleLoginClick={handleLoginClick}/>
+        </ResizableWindow>
+      )}
 
       <Box sx={{ position: "relative", flex: 1, minWidth: 0, minHeight: 0 }}>
         
-        <MapView leftOffset={leftWidth} rightOffset={rightWidth} isDemo={true} />
+        {showComps.map && (
+          <MapView 
+            leftOffset={leftWidth} 
+            rightOffset={rightWidth} 
+            isDemo={true} 
+            showControls={showComps.mapControls} 
+          />
+        )}
         
-        <Box id="timeline-overlay" sx={{ position: "absolute", left: leftWidth + 8, right: rightWidth + 8, bottom: 8, zIndex: 15, pointerEvents: "none" }}>
-          <Timeline isDemo={true} />
-        </Box>
+        {showComps.timeline && (
+          <Box id="timeline-overlay" sx={{ position: "absolute", left: leftWidth + 8, right: rightWidth + 8, bottom: 8, zIndex: 15, pointerEvents: "none" }}>
+            <Timeline isDemo={true} />
+          </Box>
+        )}
         
-        <Box sx={{ position: "absolute", top: 0, left: 0, bottom: 0, zIndex: 20, pointerEvents: "auto" }}>
-          <LeftPanel expanded={leftExpanded} onToggle={() => setLeftExpanded((v) => !v)} position="left" widthExpanded={250} widthCollapsed={50} isDemo={true} />
-        </Box>
+        {showComps.leftPanel && (
+          <Box sx={{ position: "absolute", top: 0, left: 0, bottom: 0, zIndex: 20, pointerEvents: "auto" }}>
+            <LeftPanel expanded={leftExpanded} onToggle={() => setLeftExpanded((v) => !v)} position="left" widthExpanded={250} widthCollapsed={50} isDemo={true} handleLoginClick={handleLoginClick} />
+          </Box>
+        )}
         
-        <Box sx={{ position: "absolute", top: 0, right: 0, bottom: 0, zIndex: 20, pointerEvents: "auto" }}>
-          <RightPanel expanded={rightExpanded} onToggle={() => setRightExpanded((v) => !v)} position="right" widthExpanded={300} widthCollapsed={50} project={project} isDemo={true} />
-        </Box>
+        {showComps.rightPanel && (
+          <Box sx={{ position: "absolute", top: 0, right: 0, bottom: 0, zIndex: 20, pointerEvents: "auto" }}>
+            <RightPanel expanded={rightExpanded} onToggle={() => setRightExpanded((v) => !v)} position="right" widthExpanded={300} widthCollapsed={50} project={project} isDemo={true} onLoginClick={handleLoginClick}/>
+          </Box>
+        )}
         
         {loading && <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 500, pointerEvents: "none" }}><MapLoader /></Box>}
         
         {/* --- FLOATING, DRAGGABLE TOOLS WIDGET --- */}
-        <motion.div
-          drag
-          dragConstraints={dragBoundaryRef} // <-- Added boundary constraint here
-          dragElastic={0.1} // <-- Slight bounce when hitting edge
-          dragMomentum={false}
-          // Use fixed positioning so it escapes all box constraints
-          style={{ 
-            position: 'fixed', 
-            bottom: '200px', 
-            left: '78%',
-            x: '-50%', // Centers it horizontally based on its own width
-            zIndex: 9999, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center' 
-          }}
-          className="pointer-events-auto"
-        >
+        {showComps.tools && (
+          <motion.div
+            drag
+            dragConstraints={dragBoundaryRef} 
+            dragElastic={0.1} 
+            dragMomentum={false}
+            style={{ 
+              position: 'fixed', 
+              bottom: '200px', 
+              left: '78%',
+              x: '-50%', 
+              zIndex: 9999, 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center' 
+            }}
+            className="pointer-events-auto"
+          >
+            <Tools 
+              selectedMode={selectedMode} 
+              handleToolClick={handleToolClick}
+              handleShapeClick={handleShapeClick}
+              Icons={ToolIcons}
+              isDemo={true}
+              onLoginClick={handleLoginClick}
+            />
+          </motion.div>
+        )}
+      </Box>
 
-          <Tools 
-            selectedMode={selectedMode} 
-            handleToolClick={handleToolClick}
-            handleShapeClick={handleShapeClick}
-            Icons={ToolIcons}
-            isDemo={true}
-          />
-        </motion.div>
+      {/* --- DEBUG TOGGLE WIDGET --- */}
+      <Box sx={{
+        position: 'fixed', bottom: 2, left: 2, zIndex: 99999,
+        opacity: debugMenuOpen ? 1 : 0.4, transition: 'opacity 0.3s', '&:hover': { opacity: 1 },
+        backgroundColor: 'rgba(0, 0, 0, 0.8)', color: 'white', borderRadius: 2, p: 1,
+        display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+        boxShadow: debugMenuOpen ? '0px 0px 10px rgba(0,0,0,0.5)' : 'none',
+        maxHeight: '80vh', overflowY: 'auto'
+      }}>
+        <Button size="small" onClick={() => setDebugMenuOpen(!debugMenuOpen)} sx={{ minWidth: 0, p: 0.5, color: '#aaa', fontSize: '0.6rem', lineHeight: 1 }}>
+          {debugMenuOpen ? 'Hide Debug' : '⚙'}
+        </Button>
+
+        {debugMenuOpen && (
+          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {Object.keys(showComps).map((key) => (
+              <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px' }}>
+                <input type="checkbox" checked={showComps[key]} onChange={() => toggleComp(key)} style={{ cursor: 'pointer' }} />
+                {key}
+              </label>
+            ))}
+          </Box>
+        )}
       </Box>
 
       <style>{`
