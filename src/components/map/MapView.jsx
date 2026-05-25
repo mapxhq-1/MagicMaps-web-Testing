@@ -1752,6 +1752,13 @@ const onEmpireClick = async (e) => {
         </div>
       )}
 
+    {!showControls && (
+        <style>{`
+          .maplibregl-control-container {
+            display: none !important;
+          }
+        `}</style>
+      )}
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
