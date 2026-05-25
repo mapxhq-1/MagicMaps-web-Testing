@@ -81,7 +81,7 @@ const ZOOM_TOLERANCES = {
 // MAIN COMPONENT
 // ============================================================================
 
-export default function MapView({ leftOffset = 0, rightOffset = 0 }) {
+export default function MapView({ leftOffset = 0, rightOffset = 0, showControls }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const popupRef = useRef(null);
