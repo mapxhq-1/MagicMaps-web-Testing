@@ -81,7 +81,7 @@ const ZOOM_TOLERANCES = {
 // MAIN COMPONENT
 // ============================================================================
 
-export default function MapView({ leftOffset = 0, rightOffset = 0, showControls=false}) {
+export default function MapView({ leftOffset = 0, rightOffset = 0, showControls = true}) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const popupRef = useRef(null);
@@ -1139,7 +1139,7 @@ const onEmpireClick = async (e) => {
                                             window.dispatchEvent(new CustomEvent('trigger-know-more', { detail: { query: q } }));
                                             setTimeout(() => localStorage.removeItem('pendingDynoQuery'), 500);
                                         ">
-                                    Ask Dyno
+                                    Ask Dino
                                 </button>
                             </div>
                         </div>
@@ -1279,6 +1279,7 @@ const onEmpireClick = async (e) => {
       if (theme?.startsWith('http')) { 
         try {
           map.current.setStyle(theme); 
+          // Removed the duplicate .once() listener here!
         } catch (error) {
           console.error('[MapView] Failed to set style from URL:', error);
         }
@@ -1298,12 +1299,15 @@ const onEmpireClick = async (e) => {
           if (styleCache && styleCache.delete) {
             styleCache.delete(cacheKey);
           }
+          
           map.current.setStyle(style);
+          // Removed the duplicate .once() listener here too!
         }
       } catch (error) {
         console.error('[MapView] Failed to set style:', error);
       }
     };
+
     window.mapxSetSatellite = () => map.current.setStyle(buildCloudlessStyle());
 
     const initialContext = {
@@ -1344,48 +1348,10 @@ const onEmpireClick = async (e) => {
   // SETUP CONTROLS
   // ========================================================================
 
-// 1. Add this ref near the top of your MapView component
-  const activeControlsRef = useRef([]);
-
-  // 2. Make sure you accept the new prop here:
-  // export default function MapView({ leftOffset, rightOffset, showControls = true }) { ... }
-
   const setupControls = useCallback(() => {
     if (!map.current) return;
 
     const container = map.current.getContainer();
-    
-    // --- TOGGLE LOGIC ---
-    if (showControls) {
-      // If toggled ON and we haven't added them yet, add them!
-      if (activeControlsRef.current.length === 0) {
-        const screenshot = new ScreenshotControl();
-        const distance = new MeasureDistanceControl();
-        const search = new PhotonSearchControl();
-        const attr = new CompactAttributionControl();
-        const zoom = new ZoomControl();
-        const north = new ResetNorthControl();
-
-        map.current.addControl(screenshot, "bottom-left");
-        map.current.addControl(distance, "bottom-left");
-        map.current.addControl(search, "bottom-left");
-        map.current.addControl(attr, "bottom-right");
-        map.current.addControl(zoom, "bottom-right");
-        map.current.addControl(north, "bottom-right");
-
-        // Save them to the ref so we can find them later to remove them
-        activeControlsRef.current = [screenshot, distance, search, attr, zoom, north];
-      }
-    } else {
-      // If toggled OFF, loop through the active controls and remove them
-      activeControlsRef.current.forEach(ctrl => {
-        map.current.removeControl(ctrl);
-      });
-      // Clear the ref array
-      activeControlsRef.current = [];
-    }
-
-    // --- POSITIONING LOGIC ---
     container.querySelectorAll(".maplibregl-ctrl-bottom-left, .maplibregl-ctrl-top-left")
       .forEach(el => { el.style.left = `${leftOffset + 8}px`; el.style.zIndex = "20"; });
     container.querySelectorAll(".maplibregl-ctrl-bottom-right, .maplibregl-ctrl-top-right")
@@ -1394,12 +1360,13 @@ const onEmpireClick = async (e) => {
     const bottomLeft = container.querySelector(".maplibregl-ctrl-bottom-left");
     if (bottomLeft) bottomLeft.style.bottom = "130px";
 
-  }, [leftOffset, rightOffset, showControls]); // <-- Added showControls as a dependency
-
-  // 3. Add this specific useEffect to actively call setupControls whenever the toggle changes
-  useEffect(() => {
-    setupControls();
-  }, [showControls, setupControls]);
+    map.current.addControl(new ScreenshotControl(), "bottom-left");
+    map.current.addControl(new MeasureDistanceControl(), "bottom-left");
+    map.current.addControl(new PhotonSearchControl(), "bottom-left");
+    map.current.addControl(new CompactAttributionControl(), "bottom-right");
+    map.current.addControl(new ZoomControl(), "bottom-right");
+    map.current.addControl(new ResetNorthControl(), "bottom-right");
+  }, [leftOffset, rightOffset]);
 
   const customLayers = useSelector((state) => state.layers.layers);
   useLayerManager(map, customLayers, dispatch);
@@ -1488,9 +1455,9 @@ const onEmpireClick = async (e) => {
               map.current.getSource('empire-labels-source')?.setData(labels);
               
               // Force MapLibre to fetch fresh vector tiles
-              if (map.current.getSource('polygons-source')) {
-                  map.current.getSource('polygons-source').setTiles([`mapx://tile/{z}/{x}/{y}?t=${Date.now()}`]);
-              }
+              // if (map.current.getSource('polygons-source')) {
+              //     map.current.getSource('polygons-source').setTiles([`mapx://tile/{z}/{x}/{y}?t=${Date.now()}`]);
+              // }
           }
           else if (type === 'TILE_RESPONSE' && protocolRequestsRef.current.has(requestKey)) {
               const callback = protocolRequestsRef.current.get(requestKey);
@@ -1586,11 +1553,20 @@ const onEmpireClick = async (e) => {
       map.current.on("style.load", () => {
         setupGlobeProjection();
         initializeMapLayers();
+        map.current.getSource(LAYER_IDS.FINAL_SOURCE)?.setData({
+          type: "FeatureCollection",
+          features: finalFeaturesRef.current
+        });
+
+        // 2. THE FIX: Automatically refill the polygon data!
+        if (rawPolygonsRef.current && rawPolygonsRef.current.length > 0) {
+          updateMapPolygons(rawPolygonsRef.current, false, false);
+        }
         
         // Force tile refresh if style reloads
-        if (map.current.getSource('polygons-source')) {
-          map.current.getSource('polygons-source').setTiles([`mapx://tile/{z}/{x}/{y}?t=${Date.now()}`]);
-        }
+        // if (map.current.getSource('polygons-source')) {
+        //   map.current.getSource('polygons-source').setTiles([`mapx://tile/{z}/{x}/{y}?t=${Date.now()}`]);
+        // }
       });
     })();
 
@@ -1708,6 +1684,10 @@ const onEmpireClick = async (e) => {
   // RENDER
   // ========================================================================
 
+  // ========================================================================
+  // RENDER
+  // ========================================================================
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
       <GalaxyCanvas />
@@ -1755,10 +1735,9 @@ const onEmpireClick = async (e) => {
 
       {markerOn && (
         <div 
-          className="absolute bottom-45 left-1/2 -translate-x-1/2 z-[1000]" 
+          className="bg-green-300 absolute bottom-45 left-1/2 -translate-x-1/2 z-[1000]" 
           style={{ width: 'fit-content', borderRadius: '999px', overflow: 'hidden' }}
         >
-          <LiquidGlass>
             <div style={{ position: 'relative' }}>
               <button
                 onClick={handleClear}
@@ -1774,8 +1753,16 @@ const onEmpireClick = async (e) => {
                 Clear Locations
               </button>
             </div>
-          </LiquidGlass>
         </div>
+      )}
+
+      {/* --- NEW: Hide MapLibre native controls when showControls is false --- */}
+      {!showControls && (
+        <style>{`
+          .maplibregl-control-container {
+            display: none !important;
+          }
+        `}</style>
       )}
 
       <style>{`
