@@ -32,6 +32,8 @@ import imageIcon from "../../assets/icons/image_icon.png";
 import ResizableWindow from "../Chatbot/ResizableWindow";
 import Chat from "../Chatbot/Chat";
 
+import GlobeZoomTuningPanel, { DEFAULT_GLOBE_ZOOM_SETTINGS } from "../map/GlobeZoomTuningPanel";
+
 export default function DemoLayout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -59,11 +61,15 @@ export default function DemoLayout() {
     leftPanel: true,
     rightPanel: true,
     tools: true,
-    mapControls: true, 
+    mapControls: true,
   });
+  const [globeSettings, setGlobeSettings] = useState(DEFAULT_GLOBE_ZOOM_SETTINGS);
 
   const toggleComp = (key) => {
     setShowComps((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+  const updateGlobeSetting = (key, value) => {
+    setGlobeSettings((prev) => ({ ...prev, [key]: value }));
   };
 
   // --- DEMO DATA STATE ---
@@ -243,6 +249,7 @@ export default function DemoLayout() {
             rightOffset={rightWidth} 
             isDemo={true} 
             showControls={showComps.mapControls} 
+            globeInteractionSettings={globeSettings}
           />
         )}
         
@@ -318,6 +325,8 @@ export default function DemoLayout() {
                 {key}
               </label>
             ))}
+
+            <GlobeZoomTuningPanel settings={globeSettings} onChange={updateGlobeSetting} />
           </Box>
         )}
       </Box>

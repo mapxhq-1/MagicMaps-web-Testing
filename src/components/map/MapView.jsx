@@ -22,6 +22,8 @@ import { createTextToolbar } from "./overlays/textToolbar";
 
 // Controllers
 import { createDrawModeController } from "./controllers/drawModeController";
+import { DEFAULT_GLOBE_ZOOM_SETTINGS } from "./globeZoomSettings";
+import { createGlobeWheelMotionController } from "./globeZoomMotion";
 import FreehandController from "../../draw/freehandController";
 import LineController from "../../draw/lineController";
 import PolygonController from "../../draw/polygonController";
@@ -77,11 +79,13 @@ const ZOOM_TOLERANCES = {
   12: 0
 };
 
+const DEFAULT_GLOBE_INTERACTION_SETTINGS = DEFAULT_GLOBE_ZOOM_SETTINGS;
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
-export default function MapView({ leftOffset = 0, rightOffset = 0, showControls }) {
+export default function MapView({ leftOffset = 0, rightOffset = 0, showControls, globeInteractionSettings = DEFAULT_GLOBE_INTERACTION_SETTINGS }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const popupRef = useRef(null);
@@ -111,6 +115,8 @@ export default function MapView({ leftOffset = 0, rightOffset = 0, showControls 
   // Local state
   const [stats, setStats] = useState({ original: 0, simplified: 0, reduction: 0 });
   const [currentZoom, setCurrentZoom] = useState(2);
+  const globeSettingsRef = useRef(DEFAULT_GLOBE_INTERACTION_SETTINGS);
+  const wheelMotionRef = useRef(null);
 
   // Refs for polygons
   const polygonsRef = useRef(polygons);
@@ -351,6 +357,24 @@ export default function MapView({ leftOffset = 0, rightOffset = 0, showControls 
       // Silently handle projection setup errors
     }
   }, []);
+
+  const getWheelMotion = useCallback(() => {
+    if (!wheelMotionRef.current) {
+      wheelMotionRef.current = createGlobeWheelMotionController(() => map.current);
+    }
+    return wheelMotionRef.current;
+  }, []);
+
+  const applyCurrentInteractionSettings = useCallback(() => {
+    if (!map.current) return;
+    try {
+      const motion = getWheelMotion();
+      motion.applySettings(globeSettingsRef.current);
+      motion.attach();
+    } catch (e) {
+      console.error("[MapView] Failed to apply interaction settings:", e);
+    }
+  }, [getWheelMotion]);
 
   // ========================================================================
   // OPTIMIZED POLYGON UPDATE
@@ -1404,6 +1428,16 @@ const onEmpireClick = async (e) => {
   }, []);
 
   useEffect(() => {
+    globeSettingsRef.current = {
+      ...DEFAULT_GLOBE_INTERACTION_SETTINGS,
+      ...(globeInteractionSettings || {}),
+    };
+    if (map.current) {
+      applyCurrentInteractionSettings();
+    }
+  }, [globeInteractionSettings, applyCurrentInteractionSettings]);
+
+  useEffect(() => {
     if (map.current) return;
 
     let managersRef = { manager: null, hyperlinker: null, noteManager: null };
@@ -1509,6 +1543,7 @@ const onEmpireClick = async (e) => {
         setupGlobeProjection();
         initializeMapLayers();
         setupControls();
+        applyCurrentInteractionSettings();
 
         // ----------------------------------------------------------------
         // PERFORMANCE: Inject popup CSS once here, at map load, so it is
@@ -1544,6 +1579,7 @@ const onEmpireClick = async (e) => {
         maOverlayManagerRef.current?.handleStyleChange();
         setupGlobeProjection();
         initializeMapLayers();
+        applyCurrentInteractionSettings();
         map.current.getSource(LAYER_IDS.FINAL_SOURCE)?.setData({
           type: "FeatureCollection",
           features: finalFeaturesRef.current
@@ -1553,6 +1589,7 @@ const onEmpireClick = async (e) => {
       map.current.on("style.load", () => {
         setupGlobeProjection();
         initializeMapLayers();
+        applyCurrentInteractionSettings();
         map.current.getSource(LAYER_IDS.FINAL_SOURCE)?.setData({
           type: "FeatureCollection",
           features: finalFeaturesRef.current
@@ -1574,6 +1611,7 @@ const onEmpireClick = async (e) => {
       // Clean up the custom protocol and worker memory
       maplibregl.removeProtocol('mapx');
       workerRef.current?.terminate();
+      wheelMotionRef.current?.detach();
 
       maOverlayManagerRef.current?.dispose();
       if (map.current) {
@@ -1581,7 +1619,7 @@ const onEmpireClick = async (e) => {
         map.current = null;
       }
     };
-}, []); 
+}, [applyCurrentInteractionSettings]); 
 
   // ========================================================================
   // DATA FETCHING

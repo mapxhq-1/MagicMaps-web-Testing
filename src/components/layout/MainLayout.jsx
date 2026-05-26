@@ -34,6 +34,8 @@ import imageIcon from "../../assets/icons/image_icon.png";
 import handIcon from "../../assets/icons/hand_icon.png";
 import selectIcon from "../../assets/icons/select_icon.png";
 
+import GlobeZoomTuningPanel, { DEFAULT_GLOBE_ZOOM_SETTINGS } from "../map/GlobeZoomTuningPanel";
+
 export default function MainLayout({ isDemo }) { 
   const BASE_URL = import.meta.env.VITE_URL_PROJECT + "/project-management-service";
   
@@ -62,9 +64,13 @@ export default function MainLayout({ isDemo }) {
     tools: true,
     mapControls: true, // <-- Single toggle for all map buttons
   });
+  const [globeSettings, setGlobeSettings] = useState(DEFAULT_GLOBE_ZOOM_SETTINGS);
 
   const toggleComp = (key) => {
     setShowComps((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+  const updateGlobeSetting = (key, value) => {
+    setGlobeSettings((prev) => ({ ...prev, [key]: value }));
   };
 
   // --- DATA STATE ---
@@ -248,7 +254,14 @@ export default function MainLayout({ isDemo }) {
       
       <Box sx={{ position: "relative", flex: 1, minWidth: 0, minHeight: 0 }}>
         
-        {showComps.map && <MapView leftOffset={leftWidth} rightOffset={rightWidth} showControls={showComps.mapControls} />}
+        {showComps.map && (
+          <MapView
+            leftOffset={leftWidth}
+            rightOffset={rightWidth}
+            showControls={showComps.mapControls}
+            globeInteractionSettings={globeSettings}
+          />
+        )}
         
         {showComps.timeline && (
           <Box id="timeline-overlay" sx={{ position: "absolute", left: leftWidth + 8, right: rightWidth + 8, bottom: 8, zIndex: 15, pointerEvents: "none" }}>
@@ -322,6 +335,8 @@ export default function MainLayout({ isDemo }) {
                 {key}
               </label>
             ))}
+
+            <GlobeZoomTuningPanel settings={globeSettings} onChange={updateGlobeSetting} />
           </Box>
         )}
       </Box>
