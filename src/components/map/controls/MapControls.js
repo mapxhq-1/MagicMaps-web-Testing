@@ -1,5 +1,6 @@
 import maplibregl from "maplibre-gl";
 import { isEsriProvider } from "../utils/mapStyles";
+import { loadGoogleMapsPlaces } from "../../../utils/loadGoogleMaps";
 
 // ============================================================================
 // 1. INJECT RESPONSIVE STYLES (Mobile Landscape Fix)
@@ -222,6 +223,7 @@ export class PhotonSearchControl {
                     e.preventDefault();
                     e.stopPropagation();
 
+                    await loadGoogleMapsPlaces();
                     // New API: Instantiate a Place object using the Place ID
                     const { Place } = await google.maps.importLibrary("places");
                     const place = new Place({ id: prediction.placeId });
@@ -254,6 +256,7 @@ export class PhotonSearchControl {
             }
 
             try {
+                await loadGoogleMapsPlaces();
                 // Import the places library for the New API
                 const { AutocompleteSuggestion } = await google.maps.importLibrary("places");
 

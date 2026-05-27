@@ -24,6 +24,7 @@ import { createTextToolbar } from "./overlays/textToolbar";
 import { createDrawModeController } from "./controllers/drawModeController";
 import { DEFAULT_GLOBE_ZOOM_SETTINGS } from "./globeZoomSettings";
 import { createGlobeWheelMotionController } from "./globeZoomMotion";
+import { applyGalaxyMotionSettings } from "./galaxyMotion";
 import FreehandController from "../../draw/freehandController";
 import LineController from "../../draw/lineController";
 import PolygonController from "../../draw/polygonController";
@@ -1432,6 +1433,7 @@ const onEmpireClick = async (e) => {
       ...DEFAULT_GLOBE_INTERACTION_SETTINGS,
       ...(globeInteractionSettings || {}),
     };
+    applyGalaxyMotionSettings(globeInteractionSettings);
     if (map.current) {
       applyCurrentInteractionSettings();
     }

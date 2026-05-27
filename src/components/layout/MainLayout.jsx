@@ -35,6 +35,7 @@ import handIcon from "../../assets/icons/hand_icon.png";
 import selectIcon from "../../assets/icons/select_icon.png";
 
 import GlobeZoomTuningPanel, { DEFAULT_GLOBE_ZOOM_SETTINGS } from "../map/GlobeZoomTuningPanel";
+import { applyGalaxyMotionSettings } from "../map/galaxyMotion";
 
 export default function MainLayout({ isDemo }) { 
   const BASE_URL = import.meta.env.VITE_URL_PROJECT + "/project-management-service";
@@ -72,6 +73,10 @@ export default function MainLayout({ isDemo }) {
   const updateGlobeSetting = (key, value) => {
     setGlobeSettings((prev) => ({ ...prev, [key]: value }));
   };
+
+  useEffect(() => {
+    applyGalaxyMotionSettings(globeSettings);
+  }, [globeSettings]);
 
   // --- DATA STATE ---
   const { id } = useParams();

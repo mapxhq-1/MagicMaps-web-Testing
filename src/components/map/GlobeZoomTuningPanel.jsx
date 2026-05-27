@@ -34,6 +34,33 @@ export default function GlobeZoomTuningPanel({ settings, onChange }) {
           onChange={(e) => onChange("scrollStrength", Number(e.target.value))}
         />
       </label>
+      <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#e9f5ff", mt: 0.5 }}>
+        Galaxy / stars
+      </Typography>
+      <label
+        style={{ fontSize: "11px", display: "flex", flexDirection: "column", gap: "2px" }}
+      >
+        Galaxy smoothness: {settings?.galaxySmoothness ?? DEFAULT_GLOBE_ZOOM_SETTINGS.galaxySmoothness}
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={settings?.galaxySmoothness ?? DEFAULT_GLOBE_ZOOM_SETTINGS.galaxySmoothness}
+          onChange={(e) => onChange("galaxySmoothness", Number(e.target.value))}
+        />
+      </label>
+      <label
+        style={{ fontSize: "11px", display: "flex", flexDirection: "column", gap: "2px" }}
+      >
+        Galaxy intensity: {settings?.galaxyIntensity ?? DEFAULT_GLOBE_ZOOM_SETTINGS.galaxyIntensity}
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={settings?.galaxyIntensity ?? DEFAULT_GLOBE_ZOOM_SETTINGS.galaxyIntensity}
+          onChange={(e) => onChange("galaxyIntensity", Number(e.target.value))}
+        />
+      </label>
     </Box>
   );
 }

@@ -33,6 +33,7 @@ import ResizableWindow from "../Chatbot/ResizableWindow";
 import Chat from "../Chatbot/Chat";
 
 import GlobeZoomTuningPanel, { DEFAULT_GLOBE_ZOOM_SETTINGS } from "../map/GlobeZoomTuningPanel";
+import { applyGalaxyMotionSettings } from "../map/galaxyMotion";
 
 export default function DemoLayout() {
   const dispatch = useDispatch();
@@ -71,6 +72,10 @@ export default function DemoLayout() {
   const updateGlobeSetting = (key, value) => {
     setGlobeSettings((prev) => ({ ...prev, [key]: value }));
   };
+
+  useEffect(() => {
+    applyGalaxyMotionSettings(globeSettings);
+  }, [globeSettings]);
 
   // --- DEMO DATA STATE ---
   const [project] = useState({
